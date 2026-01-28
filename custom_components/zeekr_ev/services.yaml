@@ -1,0 +1,167 @@
+get_trip_trackpoints:
+  name: Get Trip Trackpoints
+  description: Fetch detailed GPS trackpoints for a specific trip from the journey log.
+  fields:
+    vin:
+      name: VIN
+      description: Vehicle Identification Number
+      required: true
+      example: "L6TZA1S44XXXXXXXX"
+      selector:
+        text:
+    trip_id:
+      name: Trip ID
+      description: The trip ID from the journey log
+      required: true
+      example: 3
+      selector:
+        number:
+          min: 0
+          mode: box
+    trip_report_time:
+      name: Trip Report Time
+      description: The reportTime timestamp from the trip (milliseconds since epoch)
+      required: true
+      example: 1769492206000
+      selector:
+        number:
+          min: 0
+          mode: box
+
+get_stored_trips:
+  name: Get Stored Trips
+  description: Fetch trips from the local SQLite database with optional filtering.
+  fields:
+    vin:
+      name: VIN
+      description: Filter by Vehicle Identification Number (optional)
+      required: false
+      example: "L6TZA1S44XXXXXXXX"
+      selector:
+        text:
+    category:
+      name: Category
+      description: Filter by trip category (optional)
+      required: false
+      example: "business"
+      selector:
+        select:
+          options:
+            - "uncategorized"
+            - "business"
+            - "private"
+            - "commute"
+    start_date:
+      name: Start Date
+      description: Filter trips starting after this date (ISO format, optional)
+      required: false
+      example: "2025-01-01"
+      selector:
+        text:
+    end_date:
+      name: End Date
+      description: Filter trips starting before this date (ISO format, optional)
+      required: false
+      example: "2025-12-31"
+      selector:
+        text:
+    limit:
+      name: Limit
+      description: Maximum number of trips to return (default 100)
+      required: false
+      default: 100
+      selector:
+        number:
+          min: 1
+          max: 1000
+          mode: box
+    offset:
+      name: Offset
+      description: Number of trips to skip (for pagination)
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          mode: box
+
+update_trip:
+  name: Update Trip
+  description: Update user-editable fields for a stored trip (category, purpose, notes, addresses).
+  fields:
+    db_id:
+      name: Database ID
+      description: The database row ID of the trip to update
+      required: true
+      example: 42
+      selector:
+        number:
+          min: 1
+          mode: box
+    purpose:
+      name: Purpose
+      description: Purpose of the trip (e.g., "Client meeting", "Grocery shopping")
+      required: false
+      example: "Client meeting in Stockholm"
+      selector:
+        text:
+    category:
+      name: Category
+      description: Trip category for tax/reporting purposes
+      required: false
+      example: "business"
+      selector:
+        select:
+          options:
+            - "uncategorized"
+            - "business"
+            - "private"
+            - "commute"
+    notes:
+      name: Notes
+      description: Additional notes about the trip
+      required: false
+      example: "Meeting with client ABC"
+      selector:
+        text:
+          multiline: true
+    start_address:
+      name: Start Address
+      description: Human-readable start address
+      required: false
+      example: "Kungsgatan 1, Stockholm"
+      selector:
+        text:
+    end_address:
+      name: End Address
+      description: Human-readable end address
+      required: false
+      example: "Storgatan 5, Göteborg"
+      selector:
+        text:
+
+get_trip_statistics:
+  name: Get Trip Statistics
+  description: Get aggregated statistics for stored trips.
+  fields:
+    vin:
+      name: VIN
+      description: Filter by Vehicle Identification Number (optional)
+      required: false
+      example: "L6TZA1S44XXXXXXXX"
+      selector:
+        text:
+    start_date:
+      name: Start Date
+      description: Filter trips starting after this date (ISO format, optional)
+      required: false
+      example: "2025-01-01"
+      selector:
+        text:
+    end_date:
+      name: End Date
+      description: Filter trips starting before this date (ISO format, optional)
+      required: false
+      example: "2025-12-31"
+      selector:
+        text:
