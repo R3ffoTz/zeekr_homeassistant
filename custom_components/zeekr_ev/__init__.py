@@ -7,10 +7,13 @@ https://github.com/Fryyyyy/zeekr_homeassistant
 import logging
 import importlib
 
+import voluptuous as vol
+
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
+from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers.typing import ConfigType
+import homeassistant.helpers.config_validation as cv
 
 from .const import (
     CONF_HMAC_ACCESS_KEY,
@@ -31,6 +34,65 @@ from .coordinator import ZeekrCoordinator
 from .request_stats import ZeekrRequestStats
 
 _LOGGER: logging.Logger = logging.getLogger(__package__)
+
+# Service constants
+SERVICE_GET_TRIP_TRACKPOINTS = "get_trip_trackpoints"
+SERVICE_GET_STORED_TRIPS = "get_stored_trips"
+SERVICE_UPDATE_TRIP = "update_trip"
+SERVICE_GET_TRIP_STATISTICS = "get_trip_statistics"
+
+ATTR_VIN = "vin"
+ATTR_TRIP_ID = "trip_id"
+ATTR_TRIP_REPORT_TIME = "trip_report_time"
+ATTR_LIMIT = "limit"
+ATTR_OFFSET = "offset"
+ATTR_CATEGORY = "category"
+ATTR_START_DATE = "start_date"
+ATTR_END_DATE = "end_date"
+ATTR_DB_ID = "db_id"
+ATTR_PURPOSE = "purpose"
+ATTR_NOTES = "notes"
+ATTR_START_ADDRESS = "start_address"
+ATTR_END_ADDRESS = "end_address"
+
+# Service schemas
+SERVICE_GET_TRIP_TRACKPOINTS_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_VIN): cv.string,
+        vol.Required(ATTR_TRIP_ID): cv.positive_int,
+        vol.Required(ATTR_TRIP_REPORT_TIME): cv.positive_int,
+    }
+)
+
+SERVICE_GET_STORED_TRIPS_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_VIN): cv.string,
+        vol.Optional(ATTR_CATEGORY): cv.string,
+        vol.Optional(ATTR_START_DATE): cv.string,
+        vol.Optional(ATTR_END_DATE): cv.string,
+        vol.Optional(ATTR_LIMIT, default=100): cv.positive_int,
+        vol.Optional(ATTR_OFFSET, default=0): vol.Coerce(int),
+    }
+)
+
+SERVICE_UPDATE_TRIP_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_DB_ID): cv.positive_int,
+        vol.Optional(ATTR_PURPOSE): cv.string,
+        vol.Optional(ATTR_CATEGORY): cv.string,
+        vol.Optional(ATTR_NOTES): cv.string,
+        vol.Optional(ATTR_START_ADDRESS): cv.string,
+        vol.Optional(ATTR_END_ADDRESS): cv.string,
+    }
+)
+
+SERVICE_GET_TRIP_STATISTICS_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_VIN): cv.string,
+        vol.Optional(ATTR_START_DATE): cv.string,
+        vol.Optional(ATTR_END_DATE): cv.string,
+    }
+)
 
 
 def get_zeekr_client_class(use_local: bool = False):
@@ -138,18 +200,289 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # Register services (only once)
+    await async_setup_services(hass)
+
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
     return True
+
+
+async def async_setup_services(hass: HomeAssistant) -> None:
+    """Set up services for the Zeekr integration."""
+
+    async def async_get_trip_trackpoints(call: ServiceCall) -> ServiceResponse:
+        """Handle the get_trip_trackpoints service call."""
+        vin = call.data[ATTR_VIN]
+        trip_id = call.data[ATTR_TRIP_ID]
+        trip_report_time = call.data[ATTR_TRIP_REPORT_TIME]
+
+        # Find the coordinator for this VIN
+        coordinator = None
+        for entry_id, coord in hass.data[DOMAIN].items():
+            if entry_id.startswith("_"):
+                continue
+            if isinstance(coord, ZeekrCoordinator):
+                for vehicle in coord.vehicles:
+                    if vehicle.vin == vin:
+                        coordinator = coord
+                        break
+            if coordinator:
+                break
+
+        if not coordinator:
+            raise HomeAssistantError(f"Vehicle with VIN {vin} not found")
+
+        vehicle = coordinator.get_vehicle_by_vin(vin)
+        if not vehicle:
+            raise HomeAssistantError(f"Vehicle with VIN {vin} not found")
+
+        try:
+            # Increment API request counter
+            await coordinator.request_stats.async_inc_request()
+
+            # Fetch trackpoints
+            trackpoints = await hass.async_add_executor_job(
+                vehicle.get_trip_trackpoints, trip_report_time, trip_id
+            )
+
+            _LOGGER.debug(
+                "Fetched %d trackpoints for trip %d", len(trackpoints), trip_id
+            )
+
+            return {
+                "vin": vin,
+                "trip_id": trip_id,
+                "trip_report_time": trip_report_time,
+                "trackpoints": trackpoints,
+                "count": len(trackpoints),
+            }
+
+        except Exception as ex:
+            _LOGGER.error("Failed to fetch trip trackpoints: %s", ex)
+            raise HomeAssistantError(f"Failed to fetch trackpoints: {ex}") from ex
+
+    async def async_get_stored_trips(call: ServiceCall) -> ServiceResponse:
+        """Handle the get_stored_trips service call."""
+        from datetime import datetime
+
+        vin = call.data.get(ATTR_VIN)
+        category = call.data.get(ATTR_CATEGORY)
+        start_date_str = call.data.get(ATTR_START_DATE)
+        end_date_str = call.data.get(ATTR_END_DATE)
+        limit = call.data.get(ATTR_LIMIT, 100)
+        offset = call.data.get(ATTR_OFFSET, 0)
+
+        # Parse dates if provided
+        start_date = None
+        end_date = None
+        if start_date_str:
+            try:
+                start_date = datetime.fromisoformat(start_date_str)
+            except ValueError:
+                raise HomeAssistantError(f"Invalid start_date format: {start_date_str}")
+        if end_date_str:
+            try:
+                end_date = datetime.fromisoformat(end_date_str)
+            except ValueError:
+                raise HomeAssistantError(f"Invalid end_date format: {end_date_str}")
+
+        # Find any coordinator to access the database
+        coordinator = None
+        for entry_id, coord in hass.data[DOMAIN].items():
+            if entry_id.startswith("_"):
+                continue
+            if isinstance(coord, ZeekrCoordinator):
+                coordinator = coord
+                break
+
+        if not coordinator:
+            raise HomeAssistantError("No Zeekr integration found")
+
+        try:
+            trips = await hass.async_add_executor_job(
+                coordinator.journey_db.get_trips,
+                vin,
+                category,
+                start_date,
+                end_date,
+                limit,
+                offset,
+            )
+
+            return {
+                "trips": trips,
+                "count": len(trips),
+                "limit": limit,
+                "offset": offset,
+            }
+
+        except Exception as ex:
+            _LOGGER.error("Failed to get stored trips: %s", ex)
+            raise HomeAssistantError(f"Failed to get stored trips: {ex}") from ex
+
+    async def async_update_trip(call: ServiceCall) -> ServiceResponse:
+        """Handle the update_trip service call."""
+        db_id = call.data[ATTR_DB_ID]
+        purpose = call.data.get(ATTR_PURPOSE)
+        category = call.data.get(ATTR_CATEGORY)
+        notes = call.data.get(ATTR_NOTES)
+        start_address = call.data.get(ATTR_START_ADDRESS)
+        end_address = call.data.get(ATTR_END_ADDRESS)
+
+        # Find any coordinator to access the database
+        coordinator = None
+        for entry_id, coord in hass.data[DOMAIN].items():
+            if entry_id.startswith("_"):
+                continue
+            if isinstance(coord, ZeekrCoordinator):
+                coordinator = coord
+                break
+
+        if not coordinator:
+            raise HomeAssistantError("No Zeekr integration found")
+
+        try:
+            success = await hass.async_add_executor_job(
+                coordinator.journey_db.update_trip,
+                db_id,
+                purpose,
+                category,
+                notes,
+                start_address,
+                end_address,
+            )
+
+            return {
+                "success": success,
+                "db_id": db_id,
+            }
+
+        except Exception as ex:
+            _LOGGER.error("Failed to update trip: %s", ex)
+            raise HomeAssistantError(f"Failed to update trip: {ex}") from ex
+
+    async def async_get_trip_statistics(call: ServiceCall) -> ServiceResponse:
+        """Handle the get_trip_statistics service call."""
+        from datetime import datetime
+
+        vin = call.data.get(ATTR_VIN)
+        start_date_str = call.data.get(ATTR_START_DATE)
+        end_date_str = call.data.get(ATTR_END_DATE)
+
+        # Parse dates if provided
+        start_date = None
+        end_date = None
+        if start_date_str:
+            try:
+                start_date = datetime.fromisoformat(start_date_str)
+            except ValueError:
+                raise HomeAssistantError(f"Invalid start_date format: {start_date_str}")
+        if end_date_str:
+            try:
+                end_date = datetime.fromisoformat(end_date_str)
+            except ValueError:
+                raise HomeAssistantError(f"Invalid end_date format: {end_date_str}")
+
+        # Find any coordinator to access the database
+        coordinator = None
+        for entry_id, coord in hass.data[DOMAIN].items():
+            if entry_id.startswith("_"):
+                continue
+            if isinstance(coord, ZeekrCoordinator):
+                coordinator = coord
+                break
+
+        if not coordinator:
+            raise HomeAssistantError("No Zeekr integration found")
+
+        try:
+            stats = await hass.async_add_executor_job(
+                coordinator.journey_db.get_statistics,
+                vin,
+                start_date,
+                end_date,
+            )
+
+            # Also get category breakdown
+            uncategorized = await hass.async_add_executor_job(
+                coordinator.journey_db.get_uncategorized_count,
+                vin,
+            )
+
+            stats["uncategorized_trips"] = uncategorized
+
+            return stats
+
+        except Exception as ex:
+            _LOGGER.error("Failed to get trip statistics: %s", ex)
+            raise HomeAssistantError(f"Failed to get statistics: {ex}") from ex
+
+    # Only register if not already registered
+    if not hass.services.has_service(DOMAIN, SERVICE_GET_TRIP_TRACKPOINTS):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_GET_TRIP_TRACKPOINTS,
+            async_get_trip_trackpoints,
+            schema=SERVICE_GET_TRIP_TRACKPOINTS_SCHEMA,
+            supports_response=SupportsResponse.ONLY,
+        )
+        _LOGGER.debug("Registered service: %s.%s", DOMAIN, SERVICE_GET_TRIP_TRACKPOINTS)
+
+    if not hass.services.has_service(DOMAIN, SERVICE_GET_STORED_TRIPS):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_GET_STORED_TRIPS,
+            async_get_stored_trips,
+            schema=SERVICE_GET_STORED_TRIPS_SCHEMA,
+            supports_response=SupportsResponse.ONLY,
+        )
+        _LOGGER.debug("Registered service: %s.%s", DOMAIN, SERVICE_GET_STORED_TRIPS)
+
+    if not hass.services.has_service(DOMAIN, SERVICE_UPDATE_TRIP):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_UPDATE_TRIP,
+            async_update_trip,
+            schema=SERVICE_UPDATE_TRIP_SCHEMA,
+            supports_response=SupportsResponse.ONLY,
+        )
+        _LOGGER.debug("Registered service: %s.%s", DOMAIN, SERVICE_UPDATE_TRIP)
+
+    if not hass.services.has_service(DOMAIN, SERVICE_GET_TRIP_STATISTICS):
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_GET_TRIP_STATISTICS,
+            async_get_trip_statistics,
+            schema=SERVICE_GET_TRIP_STATISTICS_SCHEMA,
+            supports_response=SupportsResponse.ONLY,
+        )
+        _LOGGER.debug("Registered service: %s.%s", DOMAIN, SERVICE_GET_TRIP_STATISTICS)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Handle removal of an entry."""
     coordinator = hass.data[DOMAIN].get(entry.entry_id)
     if coordinator:
-        await coordinator.request_stats.async_shutdown()
+        await coordinator.async_shutdown()
 
     if unloaded := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         hass.data[DOMAIN].pop(entry.entry_id)
+
+    # Unregister services if no more entries
+    remaining_entries = [
+        k for k in hass.data.get(DOMAIN, {}).keys() if not k.startswith("_")
+    ]
+    if not remaining_entries:
+        for service_name in [
+            SERVICE_GET_TRIP_TRACKPOINTS,
+            SERVICE_GET_STORED_TRIPS,
+            SERVICE_UPDATE_TRIP,
+            SERVICE_GET_TRIP_STATISTICS,
+        ]:
+            if hass.services.has_service(DOMAIN, service_name):
+                hass.services.async_remove(DOMAIN, service_name)
+                _LOGGER.debug("Unregistered service: %s.%s", DOMAIN, service_name)
+
     return unloaded
 
 
