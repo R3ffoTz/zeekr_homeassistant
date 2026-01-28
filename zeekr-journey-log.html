@@ -1,0 +1,2627 @@
+###This file goes in \config\www folder###
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Zeekr Journey Log</title>
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: #1c1c1c;
+      color: #e1e1e1;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    h1 {
+      font-size: 24px;
+      font-weight: 500;
+      margin-bottom: 20px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    h1 svg {
+      width: 32px;
+      height: 32px;
+      fill: #03a9f4;
+    }
+    
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    
+    .stat-card {
+      background: #2d2d2d;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    
+    .stat-value {
+      font-size: 28px;
+      font-weight: 600;
+      color: #03a9f4;
+    }
+    
+    .stat-label {
+      font-size: 12px;
+      color: #888;
+      margin-top: 4px;
+      text-transform: uppercase;
+    }
+    
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    
+    @media (max-width: 1200px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .panel {
+      background: #2d2d2d;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    
+    .panel-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #404040;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .panel-title {
+      font-size: 16px;
+      font-weight: 500;
+    }
+    
+    .panel-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .btn {
+      background: #404040;
+      border: none;
+      color: #e1e1e1;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s;
+    }
+    
+    .btn:hover {
+      background: #505050;
+    }
+    
+    .btn-primary {
+      background: #03a9f4;
+      color: #fff;
+    }
+    
+    .btn-primary:hover {
+      background: #0288d1;
+    }
+    
+    #map {
+      height: 500px;
+      width: 100%;
+    }
+    
+    .table-container {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid #404040;
+    }
+    
+    th {
+      background: #363636;
+      font-weight: 500;
+      position: sticky;
+      top: 0;
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    th:hover {
+      background: #404040;
+    }
+    
+    th.sorted-asc::after {
+      content: ' ▲';
+      font-size: 10px;
+    }
+    
+    th.sorted-desc::after {
+      content: ' ▼';
+      font-size: 10px;
+    }
+    
+    tr:hover {
+      background: #363636;
+    }
+    
+    tr.selected {
+      background: #1a3a4a;
+    }
+    
+    tr {
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    
+    .status-connected {
+      color: #4caf50;
+    }
+    
+    .status-disconnected {
+      color: #f44336;
+    }
+    
+    .connection-status {
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 12px;
+      background: #363636;
+    }
+    
+    .loading {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 200px;
+      color: #888;
+    }
+    
+    .filter-bar {
+      padding: 16px 20px;
+      border-bottom: 1px solid #404040;
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    
+    .filter-bar label {
+      font-size: 13px;
+      color: #888;
+    }
+    
+    .filter-bar input {
+      background: #404040;
+      border: 1px solid #505050;
+      color: #e1e1e1;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    
+    .filter-bar input:focus {
+      outline: none;
+      border-color: #03a9f4;
+    }
+    
+    .trip-details {
+      padding: 16px 20px;
+      background: #363636;
+      border-top: 1px solid #404040;
+      display: none;
+    }
+    
+    .trip-details.visible {
+      display: block;
+    }
+    
+    .trip-details h3 {
+      font-size: 14px;
+      margin-bottom: 12px;
+      color: #03a9f4;
+    }
+    
+    .trip-details-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    
+    .detail-item {
+      display: flex;
+      justify-content: space-between;
+    }
+    
+    .detail-label {
+      color: #888;
+    }
+    
+    .no-data {
+      text-align: center;
+      padding: 40px;
+      color: #888;
+    }
+    
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #2d2d2d;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #505050;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #606060;
+    }
+
+    .legend {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(45, 45, 45, 0.95);
+      padding: 12px;
+      border-radius: 8px;
+      z-index: 1000;
+      font-size: 12px;
+    }
+    
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    
+    .legend-marker {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+    
+    .legend-marker.start {
+      background: #4caf50;
+    }
+    
+    .legend-marker.end {
+      background: #f44336;
+    }
+    
+    .legend-marker.route {
+      background: #03a9f4;
+    }
+
+    .detail-item.full-width {
+      grid-column: 1 / -1;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #404040;
+    }
+
+    .input-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #sensorId {
+      width: 300px;
+    }
+    
+    /* Charts Panel */
+    .charts-panel {
+      margin-top: 24px;
+      display: none;
+    }
+    
+    .charts-panel.visible {
+      display: block;
+    }
+    
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    
+    @media (max-width: 1200px) {
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    .chart-container {
+      background: #2d2d2d;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    
+    .chart-title {
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 16px;
+      color: #03a9f4;
+    }
+    
+    .chart-wrapper {
+      position: relative;
+      height: 200px;
+    }
+    
+    .trackpoint-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    
+    .trackpoint-stat {
+      background: #363636;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    .trackpoint-stat-value {
+      font-size: 20px;
+      font-weight: 600;
+      color: #03a9f4;
+    }
+    
+    .trackpoint-stat-label {
+      font-size: 11px;
+      color: #888;
+      margin-top: 4px;
+    }
+    
+    .raw-data-toggle {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #404040;
+    }
+    
+    .raw-data-container {
+      max-height: 300px;
+      overflow-y: auto;
+      background: #1c1c1c;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 11px;
+      display: none;
+      margin-top: 12px;
+    }
+    
+    .raw-data-container.visible {
+      display: block;
+    }
+    
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 20px;
+      background: #2d2d2d;
+      padding: 4px;
+      border-radius: 8px;
+      width: fit-content;
+    }
+    
+    .tab {
+      padding: 10px 20px;
+      background: transparent;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    
+    .tab:hover {
+      color: #e1e1e1;
+      background: #363636;
+    }
+    
+    .tab.active {
+      background: #03a9f4;
+      color: #fff;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* Journey Log Database Section */
+    .db-stats-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    
+    .db-stat-card {
+      background: #2d2d2d;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    
+    .db-stat-value {
+      font-size: 20px;
+      font-weight: 600;
+      color: #4caf50;
+    }
+    
+    .db-stat-value.warning {
+      color: #ff9800;
+    }
+    
+    .db-stat-label {
+      font-size: 11px;
+      color: #888;
+      margin-top: 2px;
+    }
+    
+    .category-select {
+      background: #363636;
+      border: 1px solid #505050;
+      color: #e1e1e1;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    
+    .category-select:focus {
+      outline: none;
+      border-color: #03a9f4;
+    }
+    
+    .category-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    
+    .category-badge.business {
+      background: #1565c0;
+      color: #fff;
+    }
+    
+    .category-badge.private {
+      background: #558b2f;
+      color: #fff;
+    }
+    
+    .category-badge.commute {
+      background: #6a1b9a;
+      color: #fff;
+    }
+    
+    .category-badge.uncategorized {
+      background: #616161;
+      color: #fff;
+    }
+    
+    .edit-btn {
+      background: transparent;
+      border: none;
+      color: #03a9f4;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+    }
+    
+    .edit-btn:hover {
+      background: #363636;
+    }
+    
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal-overlay.visible {
+      display: flex;
+    }
+    
+    .modal {
+      background: #2d2d2d;
+      border-radius: 12px;
+      padding: 24px;
+      width: 90%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    
+    .modal h3 {
+      margin-bottom: 16px;
+      color: #03a9f4;
+    }
+    
+    .modal-field {
+      margin-bottom: 16px;
+    }
+    
+    .modal-field label {
+      display: block;
+      margin-bottom: 4px;
+      color: #888;
+      font-size: 12px;
+    }
+    
+    .modal-field input,
+    .modal-field select,
+    .modal-field textarea {
+      width: 100%;
+      background: #363636;
+      border: 1px solid #505050;
+      color: #e1e1e1;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    
+    .modal-field textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+    
+    .input-with-button {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .input-with-button input {
+      flex: 1;
+    }
+    
+    .btn-small {
+      padding: 8px 12px;
+      font-size: 14px;
+      min-width: auto;
+    }
+    
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 20px;
+    }
+    
+    .pagination {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      justify-content: center;
+      margin-top: 16px;
+    }
+    
+    .pagination-info {
+      color: #888;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>
+      <svg viewBox="0 0 24 24"><path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/></svg>
+      Zeekr Journey Log
+      <span class="connection-status" id="connectionStatus">Not connected</span>
+    </h1>
+    
+    <div class="filter-bar">
+      <div class="input-group">
+        <label for="sensorId">Sensor:</label>
+        <input type="text" id="sensorId" placeholder="sensor.zeekr_XXXX_journey_log" />
+      </div>
+      <button class="btn btn-primary" onclick="connectToHA()">Connect</button>
+    </div>
+    
+    <div class="stats-bar" id="statsBar">
+      <div class="stat-card">
+        <div class="stat-value" id="totalTrips">-</div>
+        <div class="stat-label">Total Trips</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="totalDistance">-</div>
+        <div class="stat-label">Total Distance (km)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="totalKwh">-</div>
+        <div class="stat-label">Total kWh</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="avgConsumption">-</div>
+        <div class="stat-label">Avg Consumption</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="totalRegeneration">-</div>
+        <div class="stat-label">Total Regeneration</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="avgSpeed">-</div>
+        <div class="stat-label">Avg Speed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="totalDuration">-</div>
+        <div class="stat-label">Total Time</div>
+      </div>
+    </div>
+    
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('recent')">📋 Recent Trips (API)</button>
+      <button class="tab" onclick="switchTab('database')">🗄️ Journey Log (Database)</button>
+    </div>
+    
+    <!-- Tab Content: Recent Trips (API) -->
+    <div class="tab-content active" id="tabRecent">
+    <div class="main-content">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">🗺️ Map</span>
+          <div class="panel-actions">
+            <button class="btn" onclick="fitMapToBounds()">Show All</button>
+            <button class="btn" onclick="clearMapSelection()">Clear Selection</button>
+          </div>
+        </div>
+        <div id="map"></div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-marker start"></div> Start Point</div>
+          <div class="legend-item"><div class="legend-marker end"></div> End Point</div>
+          <div class="legend-item"><div class="legend-marker route"></div> Full Route</div>
+        </div>
+      </div>
+      
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">📋 Trips</span>
+          <div class="panel-actions">
+            <button class="btn" onclick="exportToCSV()">Export CSV</button>
+          </div>
+        </div>
+        <div class="filter-bar">
+          <div class="input-group">
+            <label>From:</label>
+            <input type="date" id="filterFrom" onchange="filterTrips()" />
+          </div>
+          <div class="input-group">
+            <label>To:</label>
+            <input type="date" id="filterTo" onchange="filterTrips()" />
+          </div>
+          <button class="btn" onclick="clearFilters()">Clear Filter</button>
+        </div>
+        <div class="table-container">
+          <table id="tripsTable">
+            <thead>
+              <tr>
+                <th data-sort="start_time" class="sorted-desc">Date</th>
+                <th data-sort="distance_km">Distance</th>
+                <th data-sort="duration_min">Time</th>
+                <th data-sort="avg_speed_kmh">Avg Speed</th>
+                <th data-sort="consumption_kwh">Avg Consump.</th>
+                <th data-sort="regeneration_wh">Regen.</th>
+              </tr>
+            </thead>
+            <tbody id="tripsBody">
+              <tr><td colspan="6" class="loading">Connect to Home Assistant...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="trip-details" id="tripDetails">
+          <h3>Trip Details</h3>
+          <div class="trip-details-grid" id="tripDetailsGrid"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Charts Panel (appears after loading trackpoints) -->
+    <div class="charts-panel" id="chartsPanel">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">📊 Trip Analysis</span>
+          <div class="panel-actions">
+            <button class="btn" onclick="exportTrackpointsCSV()">Export Trackpoints CSV</button>
+            <button class="btn" onclick="hideChartsPanel()">Close</button>
+          </div>
+        </div>
+        <div style="padding: 20px;">
+          <!-- Trackpoint Statistics -->
+          <div class="trackpoint-stats" id="trackpointStats"></div>
+          
+          <!-- Charts Grid -->
+          <div class="charts-grid">
+            <div class="chart-container">
+              <div class="chart-title">🚗 Speed over Time</div>
+              <div class="chart-wrapper">
+                <canvas id="speedChart"></canvas>
+              </div>
+            </div>
+            
+            <div class="chart-container">
+              <div class="chart-title">🧭 Heading over Time</div>
+              <div class="chart-wrapper">
+                <canvas id="headingChart"></canvas>
+              </div>
+            </div>
+            
+            <div class="chart-container">
+              <div class="chart-title">📍 Odometer over Time</div>
+              <div class="chart-wrapper">
+                <canvas id="odometerChart"></canvas>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Raw Data Toggle -->
+          <div class="raw-data-toggle">
+            <button class="btn" onclick="toggleRawData()">Show Raw Trackpoint Data</button>
+            <div class="raw-data-container" id="rawDataContainer"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div><!-- End tabRecent -->
+    
+    <!-- Tab Content: Journey Log Database -->
+    <div class="tab-content" id="tabDatabase">
+      <div class="db-stats-bar" id="dbStatsBar">
+        <div class="db-stat-card">
+          <div class="db-stat-value" id="dbTotalTrips">-</div>
+          <div class="db-stat-label">Stored Trips</div>
+        </div>
+        <div class="db-stat-card">
+          <div class="db-stat-value" id="dbTotalDistance">-</div>
+          <div class="db-stat-label">Total Distance (km)</div>
+        </div>
+        <div class="db-stat-card">
+          <div class="db-stat-value" id="dbTotalHours">-</div>
+          <div class="db-stat-label">Total Hours</div>
+        </div>
+        <div class="db-stat-card">
+          <div class="db-stat-value" id="dbTotalKwh">-</div>
+          <div class="db-stat-label">Total kWh</div>
+        </div>
+        <div class="db-stat-card">
+          <div class="db-stat-value" id="dbAvgConsumption">-</div>
+          <div class="db-stat-label">Avg kWh/100km</div>
+        </div>
+        <div class="db-stat-card">
+          <div class="db-stat-value warning" id="dbUncategorized">-</div>
+          <div class="db-stat-label">Uncategorized</div>
+        </div>
+      </div>
+      
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">🗄️ Journey Log Database</span>
+          <div class="panel-actions">
+            <button class="btn" onclick="loadDbTrips()">Refresh</button>
+            <button class="btn" onclick="triggerGeocode()" id="geocodeBtn">📍 Geocode Addresses</button>
+            <button class="btn" onclick="exportJourneyLog()">Export Mileage Log</button>
+          </div>
+        </div>
+        <div class="filter-bar">
+          <div class="input-group">
+            <label>Category:</label>
+            <select id="dbFilterCategory" onchange="loadDbTrips()">
+              <option value="">All</option>
+              <option value="uncategorized">Uncategorized</option>
+              <option value="business">Business</option>
+              <option value="private">Private</option>
+              <option value="commute">Commute</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>From:</label>
+            <input type="date" id="dbFilterFrom" onchange="loadDbTrips()" />
+          </div>
+          <div class="input-group">
+            <label>To:</label>
+            <input type="date" id="dbFilterTo" onchange="loadDbTrips()" />
+          </div>
+          <button class="btn" onclick="clearDbFilters()">Clear Filter</button>
+        </div>
+        <div class="table-container">
+          <table id="dbTripsTable">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Distance</th>
+                <th>Energy</th>
+                <th>Duration</th>
+                <th>Category</th>
+                <th>Purpose</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="dbTripsBody">
+              <tr><td colspan="7" class="loading">Click "Refresh" to load trips from database...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination" id="dbPagination">
+          <button class="btn" onclick="loadDbTrips(dbCurrentPage - 1)" id="dbPrevBtn" disabled>← Prev</button>
+          <span class="pagination-info" id="dbPageInfo">Page 1</span>
+          <button class="btn" onclick="loadDbTrips(dbCurrentPage + 1)" id="dbNextBtn">Next →</button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Edit Trip Modal -->
+    <div class="modal-overlay" id="editTripModal">
+      <div class="modal">
+        <h3>✏️ Edit Trip</h3>
+        <input type="hidden" id="editTripId" />
+        <div class="modal-field">
+          <label>Category</label>
+          <select id="editCategory">
+            <option value="uncategorized">Uncategorized</option>
+            <option value="business">Business</option>
+            <option value="private">Private</option>
+            <option value="commute">Commute</option>
+          </select>
+        </div>
+        <div class="modal-field">
+          <label>Purpose / Description</label>
+          <input type="text" id="editPurpose" placeholder="e.g., Client meeting, Grocery shopping" />
+        </div>
+        <div class="modal-field">
+          <label>Start Address</label>
+          <div class="input-with-button">
+            <input type="text" id="editStartAddress" placeholder="e.g., 123 Main Street, London" />
+            <button class="btn btn-small" onclick="geocodeStartAddress()" title="Get address from coordinates">📍</button>
+          </div>
+        </div>
+        <div class="modal-field">
+          <label>End Address</label>
+          <div class="input-with-button">
+            <input type="text" id="editEndAddress" placeholder="e.g., Main Street 5, London" />
+            <button class="btn btn-small" onclick="geocodeEndAddress()" title="Get address from coordinates">📍</button>
+          </div>
+        </div>
+        <div class="modal-field">
+          <button class="btn" onclick="geocodeBothAddresses()" style="width: 100%;">📍 Auto-fill Addresses from GPS</button>
+        </div>
+        <div class="modal-field">
+          <label>Notes</label>
+          <textarea id="editNotes" placeholder="Additional notes..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button class="btn" onclick="closeEditModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="saveTrip()">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+  
+  <script>
+    // Global state
+    let map = null;
+    let trips = [];
+    let filteredTrips = [];
+    let markers = [];
+    let selectedTripLine = null;
+    let routeLayer = null;
+    let routeMarkers = [];
+    let sortColumn = 'start_time';
+    let sortDirection = 'desc';
+    let ws = null;
+    let messageId = 1;
+    let currentVin = null;
+    let currentTrip = null;
+    let currentTrackpoints = null;
+    let pendingServiceCallId = null;
+    
+    // Database state
+    let dbTrips = [];
+    let dbCurrentPage = 0;
+    let dbPageSize = 50;
+    let dbTotalTrips = 0;
+    let pendingDbCallId = null;
+    let pendingUpdateCallId = null;
+    let pendingStatsCallId = null;
+    
+    // Chart instances
+    let speedChart = null;
+    let headingChart = null;
+    let odometerChart = null;
+    
+    // Chart.js dark theme defaults
+    Chart.defaults.color = '#888';
+    Chart.defaults.borderColor = '#404040';
+    
+    // Calculate energy consumed for a trip: (distance_km / 100) * consumption_kwh_per_100km
+    function calcTripEnergy(trip) {
+      if (trip.distance_km && trip.consumption_kwh) {
+        return (trip.distance_km / 100) * trip.consumption_kwh;
+      }
+      return null;
+    }
+    
+    // Initialize map
+    function initMap() {
+      map = L.map('map').setView([57.5, 12.0], 11);
+      
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
+      }).addTo(map);
+    }
+    
+    // Connect to Home Assistant WebSocket
+    function connectToHA() {
+      const sensorId = document.getElementById('sensorId').value.trim();
+      if (!sensorId) {
+        alert('Enter sensor ID first');
+        return;
+      }
+      
+      // Store sensor ID in localStorage
+      localStorage.setItem('zeekr_sensor_id', sensorId);
+      
+      // Get HA URL from current page or use default
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host || 'homeassistant.local:8123';
+      const wsUrl = `${protocol}//${host}/api/websocket`;
+      
+      updateConnectionStatus('Connecting...', 'pending');
+      
+      ws = new WebSocket(wsUrl);
+      
+      ws.onopen = () => {
+        console.log('WebSocket connected');
+      };
+      
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        handleMessage(message);
+      };
+      
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        updateConnectionStatus('Connection error', 'disconnected');
+      };
+      
+      ws.onclose = () => {
+        console.log('WebSocket closed');
+        updateConnectionStatus('Disconnected', 'disconnected');
+      };
+    }
+    
+    function handleMessage(message) {
+      // Only log non-event messages to reduce console spam
+      if (message.type !== 'event') {
+        console.log('WS message:', message.type, message);
+      }
+      
+      switch (message.type) {
+        case 'auth_required':
+          // Try to get token from URL or prompt
+          const urlParams = new URLSearchParams(window.location.search);
+          let token = urlParams.get('token') || localStorage.getItem('ha_token');
+          
+          if (!token) {
+            token = prompt('Enter your Home Assistant Long-Lived Access Token:');
+            if (token) {
+              localStorage.setItem('ha_token', token);
+            }
+          }
+          
+          if (token) {
+            ws.send(JSON.stringify({
+              type: 'auth',
+              access_token: token
+            }));
+          }
+          break;
+          
+        case 'auth_ok':
+          updateConnectionStatus('Connected', 'connected');
+          fetchSensorState();
+          subscribeToStateChanges();
+          break;
+          
+        case 'auth_invalid':
+          updateConnectionStatus('Invalid token', 'disconnected');
+          localStorage.removeItem('ha_token');
+          break;
+          
+        case 'result':
+          // Check if this is a service call response
+          if (message.id === pendingServiceCallId) {
+            console.log('Service response:', message);
+            handleServiceResponse(message);
+            pendingServiceCallId = null;
+            break;
+          }
+          
+          // Check if this is a database trips response
+          if (message.id === pendingDbCallId) {
+            console.log('Database trips response:', message);
+            if (message.success && message.result && message.result.response) {
+              handleDbResponse(message.result.response);
+            }
+            pendingDbCallId = null;
+            break;
+          }
+          
+          // Check if this is a stats response
+          if (message.id === pendingStatsCallId) {
+            console.log('Stats response:', message);
+            if (message.success && message.result && message.result.response) {
+              handleStatsResponse(message.result.response);
+            }
+            pendingStatsCallId = null;
+            break;
+          }
+          
+          // Check if this is an update response
+          if (message.id === pendingUpdateCallId) {
+            console.log('Update response:', message);
+            if (message.success) {
+              console.log('✅ Trip updated successfully');
+            } else {
+              console.error('❌ Failed to update trip:', message.error);
+              // Reload to restore correct state
+              loadDbTrips(dbCurrentPage);
+            }
+            pendingUpdateCallId = null;
+            break;
+          }
+          
+          // Check if this is a geocode response
+          if (message.id === pendingGeocodeCallId) {
+            console.log('Geocode response:', message);
+            if (message.success && message.result && message.result.response) {
+              handleGeocodeResponse(message.result.response);
+            } else if (message.success) {
+              handleGeocodeResponse({ success: true, trips_queued: 0 });
+            } else {
+              handleGeocodeResponse({ success: false });
+            }
+            pendingGeocodeCallId = null;
+            break;
+          }
+          
+          if (message.success && message.result) {
+            // Handle get_states response (array of all states)
+            if (Array.isArray(message.result)) {
+              const sensorId = document.getElementById('sensorId').value.trim();
+              const sensor = message.result.find(s => s.entity_id === sensorId);
+              if (sensor && sensor.attributes && sensor.attributes.trips) {
+                console.log('Found sensor:', sensor);
+                processTrips(sensor);
+              }
+            }
+            // Handle single state response
+            else if (message.result.attributes && message.result.attributes.trips) {
+              processTrips(message.result);
+            }
+          }
+          break;
+          
+        case 'event':
+          if (message.event && message.event.data && message.event.data.new_state) {
+            const newState = message.event.data.new_state;
+            const sensorId = document.getElementById('sensorId').value.trim();
+            // Only process if it's our sensor
+            if (newState.entity_id === sensorId && newState.attributes && newState.attributes.trips) {
+              console.log('State changed for our sensor:', newState);
+              processTrips(newState);
+            }
+          }
+          break;
+      }
+    }
+    
+    function fetchSensorState() {
+      const sensorId = document.getElementById('sensorId').value.trim();
+      ws.send(JSON.stringify({
+        id: messageId++,
+        type: 'get_states'
+      }));
+      
+      // Also send specific state request
+      ws.send(JSON.stringify({
+        id: messageId++,
+        type: 'call_service',
+        domain: 'homeassistant',
+        service: 'update_entity',
+        service_data: {
+          entity_id: sensorId
+        }
+      }));
+      
+      // Get state directly
+      setTimeout(() => {
+        ws.send(JSON.stringify({
+          id: messageId++,
+          type: 'get_states'
+        }));
+      }, 1000);
+    }
+    
+    function subscribeToStateChanges() {
+      const sensorId = document.getElementById('sensorId').value.trim();
+      ws.send(JSON.stringify({
+        id: messageId++,
+        type: 'subscribe_events',
+        event_type: 'state_changed'
+      }));
+    }
+    
+    function processTrips(sensorState) {
+      const attrs = sensorState.attributes || {};
+      trips = attrs.trips || [];
+      
+      // Extract VIN from the first trip or from sensor attribute
+      if (trips.length > 0 && trips[0].vin) {
+        currentVin = trips[0].vin;
+        console.log('VIN from trip data:', currentVin);
+      } else if (attrs.vin) {
+        currentVin = attrs.vin;
+        console.log('VIN from sensor attribute:', currentVin);
+      }
+      
+      if (trips.length === 0) {
+        document.getElementById('tripsBody').innerHTML = 
+          '<tr><td colspan="6" class="no-data">No trips found</td></tr>';
+        return;
+      }
+      
+      updateStats();
+      filterTrips();
+      updateMap();
+    }
+    
+    function updateStats() {
+      const totalDistance = trips.reduce((sum, t) => sum + (t.distance_km || 0), 0);
+      const totalDuration = trips.reduce((sum, t) => sum + (t.duration_min || 0), 0);
+      const totalRegen = trips.reduce((sum, t) => sum + (t.regeneration_wh || 0), 0);
+      const avgConsumption = trips.length > 0 
+        ? trips.reduce((sum, t) => sum + (t.consumption_kwh || 0), 0) / trips.length 
+        : 0;
+      const avgSpeedVal = trips.length > 0
+        ? trips.reduce((sum, t) => sum + (t.avg_speed_kmh || 0), 0) / trips.length
+        : 0;
+      
+      // Calculate total kWh consumed: sum of (distance / 100 * consumption) for each trip
+      const totalKwh = trips.reduce((sum, t) => {
+        const energy = calcTripEnergy(t);
+        return sum + (energy || 0);
+      }, 0);
+      
+      document.getElementById('totalTrips').textContent = trips.length;
+      document.getElementById('totalDistance').textContent = totalDistance.toLocaleString('en-US');
+      document.getElementById('totalKwh').textContent = totalKwh.toFixed(1);
+      document.getElementById('avgConsumption').textContent = avgConsumption.toFixed(1) + ' kWh';
+      document.getElementById('totalRegeneration').textContent = (totalRegen / 1000).toFixed(1) + ' kWh';
+      document.getElementById('avgSpeed').textContent = avgSpeedVal.toFixed(0) + ' km/h';
+      document.getElementById('totalDuration').textContent = formatDuration(totalDuration);
+    }
+    
+    function formatDuration(minutes) {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      if (hours > 0) {
+        return `${hours}h ${mins}m`;
+      }
+      return `${mins}m`;
+    }
+    
+    function formatDateTime(timestamp) {
+      if (!timestamp) return '-';
+      const date = new Date(timestamp);
+      return date.toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+    
+    function formatTime(timestamp) {
+      if (!timestamp) return '-';
+      const date = new Date(timestamp);
+      return date.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+    }
+    
+    function formatDate(timestamp) {
+      if (!timestamp) return '-';
+      const date = new Date(timestamp);
+      return date.toISOString().split('T')[0];
+    }
+    
+    function filterTrips() {
+      const fromDate = document.getElementById('filterFrom').value;
+      const toDate = document.getElementById('filterTo').value;
+      
+      filteredTrips = trips.filter(trip => {
+        const tripDate = formatDate(trip.start_time);
+        if (fromDate && tripDate < fromDate) return false;
+        if (toDate && tripDate > toDate) return false;
+        return true;
+      });
+      
+      sortTrips();
+      renderTable();
+    }
+    
+    function sortTrips() {
+      filteredTrips.sort((a, b) => {
+        let aVal = a[sortColumn] || 0;
+        let bVal = b[sortColumn] || 0;
+        
+        if (sortDirection === 'asc') {
+          return aVal > bVal ? 1 : -1;
+        } else {
+          return aVal < bVal ? 1 : -1;
+        }
+      });
+    }
+    
+    function renderTable() {
+      const tbody = document.getElementById('tripsBody');
+      
+      if (filteredTrips.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="no-data">No trips match the filter</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = filteredTrips.map((trip, index) => `
+        <tr data-index="${index}" onclick="selectTrip(${index})">
+          <td>${formatDateTime(trip.start_time)}</td>
+          <td>${trip.distance_km || 0} km</td>
+          <td>${trip.duration_min || 0} min</td>
+          <td>${trip.avg_speed_kmh || 0} km/h</td>
+          <td>${trip.consumption_kwh || 0} kWh/100km</td>
+          <td>${trip.regeneration_wh || 0} Wh</td>
+        </tr>
+      `).join('');
+      
+      // Update sort indicators
+      document.querySelectorAll('th[data-sort]').forEach(th => {
+        th.classList.remove('sorted-asc', 'sorted-desc');
+        if (th.dataset.sort === sortColumn) {
+          th.classList.add(sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+        }
+      });
+    }
+    
+    function selectTrip(index) {
+      const trip = filteredTrips[index];
+      
+      // Highlight row
+      document.querySelectorAll('#tripsBody tr').forEach(tr => tr.classList.remove('selected'));
+      document.querySelector(`#tripsBody tr[data-index="${index}"]`)?.classList.add('selected');
+      
+      // Show details
+      showTripDetails(trip);
+      
+      // Update map
+      highlightTripOnMap(trip);
+      
+      // Hide charts panel when selecting new trip
+      hideChartsPanel();
+    }
+    
+    function showTripDetails(trip) {
+      const details = document.getElementById('tripDetails');
+      const grid = document.getElementById('tripDetailsGrid');
+      
+      currentTrip = trip;
+      
+      const startDate = new Date(trip.start_time);
+      const endDate = new Date(trip.end_time);
+      
+      grid.innerHTML = `
+        <div class="detail-item">
+          <span class="detail-label">Trip ID:</span>
+          <span>${trip.trip_id}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Start Time:</span>
+          <span>${startDate.toLocaleString('en-US')}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">End Time:</span>
+          <span>${endDate.toLocaleString('en-US')}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Duration:</span>
+          <span>${trip.duration_min} min</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Distance:</span>
+          <span>${trip.distance_km} km</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Avg Speed:</span>
+          <span>${trip.avg_speed_kmh} km/h</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Consumption:</span>
+          <span>${trip.consumption_kwh} kWh/100km</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Regeneration:</span>
+          <span>${trip.regeneration_wh} Wh</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Start Coordinate:</span>
+          <span>${trip.start_lat?.toFixed(5)}, ${trip.start_lon?.toFixed(5)}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">End Coordinate:</span>
+          <span>${trip.end_lat?.toFixed(5)}, ${trip.end_lon?.toFixed(5)}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">Start Odometer:</span>
+          <span>${trip.start_odometer?.toLocaleString('en-US')} km</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">End Odometer:</span>
+          <span>${trip.end_odometer?.toLocaleString('en-US')} km</span>
+        </div>
+        <div class="detail-item full-width">
+          <button class="btn btn-primary" id="loadRouteBtn" onclick="loadTripTrackpoints()">
+            🛣️ Load Full Route & Charts
+          </button>
+          <span id="routeStatus" style="margin-left: 10px; font-size: 12px; color: #888;"></span>
+        </div>
+      `;
+      
+      details.classList.add('visible');
+    }
+    
+    function updateMap() {
+      // Clear existing markers
+      markers.forEach(m => map.removeLayer(m));
+      markers = [];
+      
+      if (selectedTripLine) {
+        map.removeLayer(selectedTripLine);
+        selectedTripLine = null;
+      }
+      
+      // Add markers for all trips
+      const bounds = L.latLngBounds();
+      
+      filteredTrips.forEach((trip, index) => {
+        if (trip.start_lat && trip.start_lon) {
+          const startMarker = L.circleMarker([trip.start_lat, trip.start_lon], {
+            radius: 6,
+            fillColor: '#4caf50',
+            color: '#fff',
+            weight: 1,
+            opacity: 0.8,
+            fillOpacity: 0.8
+          }).addTo(map);
+          
+          startMarker.bindPopup(`
+            <b>Start - Trip ${trip.trip_id}</b><br>
+            ${formatDateTime(trip.start_time)}<br>
+            ${trip.distance_km} km
+          `);
+          
+          markers.push(startMarker);
+          bounds.extend([trip.start_lat, trip.start_lon]);
+        }
+        
+        if (trip.end_lat && trip.end_lon) {
+          const endMarker = L.circleMarker([trip.end_lat, trip.end_lon], {
+            radius: 6,
+            fillColor: '#f44336',
+            color: '#fff',
+            weight: 1,
+            opacity: 0.8,
+            fillOpacity: 0.8
+          }).addTo(map);
+          
+          endMarker.bindPopup(`
+            <b>End - Trip ${trip.trip_id}</b><br>
+            ${formatDateTime(trip.end_time)}<br>
+            ${trip.distance_km} km
+          `);
+          
+          markers.push(endMarker);
+          bounds.extend([trip.end_lat, trip.end_lon]);
+        }
+      });
+      
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [50, 50] });
+      }
+    }
+    
+    function highlightTripOnMap(trip) {
+      // Remove previous highlight
+      if (selectedTripLine) {
+        map.removeLayer(selectedTripLine);
+      }
+      
+      if (trip.start_lat && trip.start_lon && trip.end_lat && trip.end_lon) {
+        // Draw line between start and end
+        selectedTripLine = L.polyline([
+          [trip.start_lat, trip.start_lon],
+          [trip.end_lat, trip.end_lon]
+        ], {
+          color: '#03a9f4',
+          weight: 4,
+          opacity: 0.8,
+          dashArray: '10, 10'
+        }).addTo(map);
+        
+        // Fit map to this trip
+        const bounds = L.latLngBounds([
+          [trip.start_lat, trip.start_lon],
+          [trip.end_lat, trip.end_lon]
+        ]);
+        map.fitBounds(bounds, { padding: [100, 100] });
+      }
+    }
+    
+    function fitMapToBounds() {
+      if (filteredTrips.length === 0) return;
+      
+      const bounds = L.latLngBounds();
+      filteredTrips.forEach(trip => {
+        if (trip.start_lat && trip.start_lon) {
+          bounds.extend([trip.start_lat, trip.start_lon]);
+        }
+        if (trip.end_lat && trip.end_lon) {
+          bounds.extend([trip.end_lat, trip.end_lon]);
+        }
+      });
+      
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [50, 50] });
+      }
+    }
+    
+    function clearMapSelection() {
+      if (selectedTripLine) {
+        map.removeLayer(selectedTripLine);
+        selectedTripLine = null;
+      }
+      if (routeLayer) {
+        map.removeLayer(routeLayer);
+        routeLayer = null;
+      }
+      routeMarkers.forEach(m => map.removeLayer(m));
+      routeMarkers = [];
+      document.querySelectorAll('#tripsBody tr').forEach(tr => tr.classList.remove('selected'));
+      document.getElementById('tripDetails').classList.remove('visible');
+      hideChartsPanel();
+      currentTrip = null;
+      currentTrackpoints = null;
+    }
+    
+    function loadTripTrackpoints() {
+      if (!currentTrip || !currentVin) {
+        console.error('No trip selected or VIN not available');
+        return;
+      }
+      
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        document.getElementById('routeStatus').textContent = 'Not connected!';
+        return;
+      }
+      
+      const btn = document.getElementById('loadRouteBtn');
+      const status = document.getElementById('routeStatus');
+      
+      btn.disabled = true;
+      btn.textContent = '⏳ Loading...';
+      status.textContent = 'Fetching GPS data...';
+      
+      // Call Home Assistant service
+      pendingServiceCallId = messageId++;
+      
+      const serviceCall = {
+        id: pendingServiceCallId,
+        type: 'call_service',
+        domain: 'zeekr_ev',
+        service: 'get_trip_trackpoints',
+        service_data: {
+          vin: currentVin,
+          trip_id: currentTrip.trip_id,
+          trip_report_time: currentTrip.report_time
+        },
+        return_response: true
+      };
+      
+      console.log('Calling service:', serviceCall);
+      ws.send(JSON.stringify(serviceCall));
+    }
+    
+    function handleServiceResponse(response) {
+      const btn = document.getElementById('loadRouteBtn');
+      const status = document.getElementById('routeStatus');
+      
+      btn.disabled = false;
+      btn.textContent = '🛣️ Load Full Route & Charts';
+      
+      // Response structure: {success: true, result: {response: {trackpoints: [...]}}}
+      if (response.success && response.result && response.result.response) {
+        const data = response.result.response;
+        const trackpoints = data.trackpoints || [];
+        
+        if (trackpoints.length > 0) {
+          status.textContent = `✓ ${trackpoints.length} points loaded`;
+          status.style.color = '#4caf50';
+          currentTrackpoints = trackpoints;
+          drawFullRoute(trackpoints);
+          showChartsPanel(trackpoints);
+        } else {
+          status.textContent = 'No trackpoints available';
+          status.style.color = '#ff9800';
+        }
+      } else {
+        const error = response.error?.message || 'Failed to load route';
+        status.textContent = `✗ ${error}`;
+        status.style.color = '#f44336';
+        console.error('Service error:', response);
+      }
+    }
+    
+    function drawFullRoute(trackpoints) {
+      // Remove previous route
+      if (routeLayer) {
+        map.removeLayer(routeLayer);
+      }
+      if (selectedTripLine) {
+        map.removeLayer(selectedTripLine);
+        selectedTripLine = null;
+      }
+      routeMarkers.forEach(m => map.removeLayer(m));
+      routeMarkers = [];
+      
+      // Create array of coordinates
+      const coordinates = trackpoints
+        .filter(tp => tp.latitude && tp.longitude)
+        .map(tp => [tp.latitude, tp.longitude]);
+      
+      if (coordinates.length < 2) {
+        console.warn('Not enough coordinates to draw route');
+        return;
+      }
+      
+      // Draw the route as a polyline with speed-based coloring
+      routeLayer = L.polyline(coordinates, {
+        color: '#03a9f4',
+        weight: 4,
+        opacity: 0.9,
+        smoothFactor: 1
+      }).addTo(map);
+      
+      // Add markers for key points (start, end, and speed indicators)
+      const startPoint = coordinates[0];
+      const endPoint = coordinates[coordinates.length - 1];
+      
+      // Start marker (green)
+      const startMarker = L.circleMarker(startPoint, {
+        radius: 10,
+        fillColor: '#4caf50',
+        color: '#fff',
+        weight: 2,
+        fillOpacity: 1
+      }).addTo(map).bindPopup(`<b>Start</b><br>${formatDateTime(trackpoints[0].systemTime)}`);
+      routeMarkers.push(startMarker);
+      
+      // End marker (red)
+      const endMarker = L.circleMarker(endPoint, {
+        radius: 10,
+        fillColor: '#f44336',
+        color: '#fff',
+        weight: 2,
+        fillOpacity: 1
+      }).addTo(map).bindPopup(`<b>End</b><br>${formatDateTime(trackpoints[trackpoints.length - 1].systemTime)}`);
+      routeMarkers.push(endMarker);
+      
+      // Find max speed point and add marker
+      let maxSpeed = 0;
+      let maxSpeedPoint = null;
+      trackpoints.forEach(tp => {
+        if (tp.speed > maxSpeed) {
+          maxSpeed = tp.speed;
+          maxSpeedPoint = tp;
+        }
+      });
+      
+      if (maxSpeedPoint && maxSpeed > 30) {
+        const maxSpeedMarker = L.circleMarker([maxSpeedPoint.latitude, maxSpeedPoint.longitude], {
+          radius: 7,
+          fillColor: '#ff9800',
+          color: '#fff',
+          weight: 2,
+          fillOpacity: 0.9
+        }).addTo(map).bindPopup(`<b>Max Speed</b><br>${maxSpeed} km/h<br>${formatDateTime(maxSpeedPoint.systemTime)}`);
+        routeMarkers.push(maxSpeedMarker);
+      }
+      
+      // Fit map to route
+      const bounds = L.latLngBounds(coordinates);
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+    
+    // ===== Charts Functions =====
+    
+    function showChartsPanel(trackpoints) {
+      const panel = document.getElementById('chartsPanel');
+      panel.classList.add('visible');
+      
+      // Calculate and display statistics
+      updateTrackpointStats(trackpoints);
+      
+      // Create charts
+      createSpeedChart(trackpoints);
+      createHeadingChart(trackpoints);
+      createOdometerChart(trackpoints);
+      
+      // Scroll to charts
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    
+    function hideChartsPanel() {
+      const panel = document.getElementById('chartsPanel');
+      panel.classList.remove('visible');
+      
+      // Destroy chart instances
+      if (speedChart) { speedChart.destroy(); speedChart = null; }
+      if (headingChart) { headingChart.destroy(); headingChart = null; }
+      if (odometerChart) { odometerChart.destroy(); odometerChart = null; }
+    }
+    
+    function updateTrackpointStats(trackpoints) {
+      const statsContainer = document.getElementById('trackpointStats');
+      
+      // Calculate stats
+      const speeds = trackpoints.map(tp => tp.speed || 0).filter(s => s > 0);
+      
+      const maxSpeed = speeds.length > 0 ? Math.max(...speeds) : 0;
+      const avgSpeed = speeds.length > 0 ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
+      
+      // Time span
+      const firstTime = trackpoints[0]?.systemTime;
+      const lastTime = trackpoints[trackpoints.length - 1]?.systemTime;
+      const durationMs = lastTime && firstTime ? lastTime - firstTime : 0;
+      const durationMin = Math.round(durationMs / 60000);
+      
+      // Distance from odometer (odometer is already in km)
+      const firstOdo = trackpoints[0]?.odometer;
+      const lastOdo = trackpoints[trackpoints.length - 1]?.odometer;
+      const distance = firstOdo && lastOdo ? (lastOdo - firstOdo).toFixed(1) : '-';
+      
+      statsContainer.innerHTML = `
+        <div class="trackpoint-stat">
+          <div class="trackpoint-stat-value">${trackpoints.length}</div>
+          <div class="trackpoint-stat-label">Data Points</div>
+        </div>
+        <div class="trackpoint-stat">
+          <div class="trackpoint-stat-value">${maxSpeed}</div>
+          <div class="trackpoint-stat-label">Max Speed (km/h)</div>
+        </div>
+        <div class="trackpoint-stat">
+          <div class="trackpoint-stat-value">${avgSpeed.toFixed(0)}</div>
+          <div class="trackpoint-stat-label">Avg Speed (km/h)</div>
+        </div>
+        <div class="trackpoint-stat">
+          <div class="trackpoint-stat-value">${durationMin}</div>
+          <div class="trackpoint-stat-label">Duration (min)</div>
+        </div>
+        <div class="trackpoint-stat">
+          <div class="trackpoint-stat-value">${distance}</div>
+          <div class="trackpoint-stat-label">Distance (km)</div>
+        </div>
+      `;
+    }
+    
+    function createChartData(trackpoints, valueKey, label, color) {
+      return {
+        labels: trackpoints.map(tp => new Date(tp.systemTime)),
+        datasets: [{
+          label: label,
+          data: trackpoints.map(tp => tp[valueKey]),
+          borderColor: color,
+          backgroundColor: color + '20',
+          fill: true,
+          tension: 0.2,
+          pointRadius: 0,
+          pointHoverRadius: 4
+        }]
+      };
+    }
+    
+    function createChartOptions(yAxisLabel, suggestedMin = undefined, suggestedMax = undefined) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+          intersect: false,
+          mode: 'index'
+        },
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: '#2d2d2d',
+            borderColor: '#404040',
+            borderWidth: 1,
+            titleColor: '#fff',
+            bodyColor: '#e1e1e1',
+            callbacks: {
+              title: function(context) {
+                return formatTime(context[0].parsed.x);
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            type: 'time',
+            time: {
+              displayFormats: {
+                minute: 'HH:mm',
+                hour: 'HH:mm'
+              }
+            },
+            grid: {
+              color: '#404040'
+            },
+            ticks: {
+              color: '#888',
+              maxTicksLimit: 8
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: yAxisLabel,
+              color: '#888'
+            },
+            grid: {
+              color: '#404040'
+            },
+            ticks: {
+              color: '#888'
+            },
+            suggestedMin: suggestedMin,
+            suggestedMax: suggestedMax
+          }
+        }
+      };
+    }
+    
+    function createSpeedChart(trackpoints) {
+      const ctx = document.getElementById('speedChart').getContext('2d');
+      if (speedChart) speedChart.destroy();
+      
+      speedChart = new Chart(ctx, {
+        type: 'line',
+        data: createChartData(trackpoints, 'speed', 'Speed', '#03a9f4'),
+        options: createChartOptions('km/h', 0)
+      });
+    }
+    
+    function createHeadingChart(trackpoints) {
+      const ctx = document.getElementById('headingChart').getContext('2d');
+      if (headingChart) headingChart.destroy();
+      
+      headingChart = new Chart(ctx, {
+        type: 'line',
+        data: createChartData(trackpoints, 'direction', 'Heading', '#ff9800'),
+        options: createChartOptions('degrees', 0, 360)
+      });
+    }
+    
+    function createOdometerChart(trackpoints) {
+      const ctx = document.getElementById('odometerChart').getContext('2d');
+      if (odometerChart) odometerChart.destroy();
+      
+      // Convert odometer to km (divide by 10)
+      const data = {
+        labels: trackpoints.map(tp => new Date(tp.systemTime)),
+        datasets: [{
+          label: 'Odometer',
+          data: trackpoints.map(tp => tp.odometer ? tp.odometer / 10 : null),
+          borderColor: '#9c27b0',
+          backgroundColor: '#9c27b020',
+          fill: true,
+          tension: 0.2,
+          pointRadius: 0,
+          pointHoverRadius: 4
+        }]
+      };
+      
+      odometerChart = new Chart(ctx, {
+        type: 'line',
+        data: data,
+        options: createChartOptions('km')
+      });
+    }
+    
+    function toggleRawData() {
+      const container = document.getElementById('rawDataContainer');
+      container.classList.toggle('visible');
+      
+      if (container.classList.contains('visible') && currentTrackpoints) {
+        // Show first and last few trackpoints
+        const sample = currentTrackpoints.slice(0, 3);
+        if (currentTrackpoints.length > 6) {
+          sample.push({ '...': `... ${currentTrackpoints.length - 6} more points ...` });
+        }
+        if (currentTrackpoints.length > 3) {
+          sample.push(...currentTrackpoints.slice(-3));
+        }
+        
+        container.innerHTML = '<pre>' + JSON.stringify(sample, null, 2) + '</pre>';
+      }
+    }
+    
+    function exportTrackpointsCSV() {
+      if (!currentTrackpoints || currentTrackpoints.length === 0) {
+        alert('No trackpoints to export');
+        return;
+      }
+      
+      // Get all unique keys from trackpoints
+      const allKeys = new Set();
+      currentTrackpoints.forEach(tp => Object.keys(tp).forEach(k => allKeys.add(k)));
+      const headers = Array.from(allKeys);
+      
+      const rows = currentTrackpoints.map(tp => 
+        headers.map(h => {
+          const val = tp[h];
+          if (h === 'systemTime' && val) return new Date(val).toISOString();
+          return val !== undefined ? val : '';
+        })
+      );
+      
+      const csv = [headers, ...rows].map(row => row.join(';')).join('\n');
+      
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `zeekr_trackpoints_trip_${currentTrip?.trip_id || 'unknown'}_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+    }
+    
+    function clearFilters() {
+      document.getElementById('filterFrom').value = '';
+      document.getElementById('filterTo').value = '';
+      filterTrips();
+    }
+    
+    function updateConnectionStatus(text, status) {
+      const el = document.getElementById('connectionStatus');
+      el.textContent = text;
+      el.className = 'connection-status';
+      if (status === 'connected') {
+        el.classList.add('status-connected');
+      } else if (status === 'disconnected') {
+        el.classList.add('status-disconnected');
+      }
+    }
+    
+    function exportToCSV() {
+      if (filteredTrips.length === 0) {
+        alert('No trips to export');
+        return;
+      }
+      
+      const headers = [
+        'Trip ID', 'Start Date', 'End Date', 'Duration (min)', 
+        'Distance (km)', 'Avg Speed (km/h)', 'Consumption (kWh/100km)',
+        'Regeneration (Wh)', 'Start Lat', 'Start Lon', 'End Lat', 'End Lon',
+        'Start Odometer', 'End Odometer'
+      ];
+      
+      const rows = filteredTrips.map(trip => [
+        trip.trip_id,
+        new Date(trip.start_time).toISOString(),
+        new Date(trip.end_time).toISOString(),
+        trip.duration_min,
+        trip.distance_km,
+        trip.avg_speed_kmh,
+        trip.consumption_kwh,
+        trip.regeneration_wh,
+        trip.start_lat,
+        trip.start_lon,
+        trip.end_lat,
+        trip.end_lon,
+        trip.start_odometer,
+        trip.end_odometer
+      ]);
+      
+      const csv = [headers, ...rows].map(row => row.join(';')).join('\n');
+      
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `zeekr_journey_log_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+    }
+    
+    // Sort handler
+    document.querySelectorAll('th[data-sort]').forEach(th => {
+      th.addEventListener('click', () => {
+        const column = th.dataset.sort;
+        if (sortColumn === column) {
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortColumn = column;
+          sortDirection = 'desc';
+        }
+        sortTrips();
+        renderTable();
+      });
+    });
+    
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      initMap();
+      
+      // Restore sensor ID from localStorage
+      const savedSensorId = localStorage.getItem('zeekr_sensor_id');
+      if (savedSensorId) {
+        document.getElementById('sensorId').value = savedSensorId;
+      }
+    });
+    
+    // Alternative: Load data from URL parameter (for testing)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('demo')) {
+      // Demo data for testing
+      setTimeout(() => {
+        trips = [
+          {trip_id: 1, start_time: Date.now() - 3600000, end_time: Date.now(), duration_min: 60, distance_km: 50, avg_speed_kmh: 50, consumption_kwh: 18, regeneration_wh: 500, start_lat: 57.51, start_lon: 12.08, end_lat: 57.46, end_lon: 12.05, start_odometer: 15000, end_odometer: 15050, report_time: Date.now()},
+          {trip_id: 2, start_time: Date.now() - 7200000, end_time: Date.now() - 3600000, duration_min: 30, distance_km: 25, avg_speed_kmh: 50, consumption_kwh: 20, regeneration_wh: 300, start_lat: 57.46, start_lon: 12.05, end_lat: 57.51, end_lon: 12.08, start_odometer: 14975, end_odometer: 15000, report_time: Date.now() - 3600000}
+        ];
+        currentVin = 'DEMO_VIN_12345';
+        updateStats();
+        filterTrips();
+        updateMap();
+        updateConnectionStatus('Demo Mode', 'connected');
+      }, 500);
+    }
+    
+    // ============================================
+    // DATABASE FUNCTIONS
+    // ============================================
+    
+    function switchTab(tabName) {
+      // Update tab buttons
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      // Update tab content
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      if (tabName === 'recent') {
+        document.getElementById('tabRecent').classList.add('active');
+      } else if (tabName === 'database') {
+        document.getElementById('tabDatabase').classList.add('active');
+        // Load database stats and trips on first switch
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          loadDbStats();
+          if (dbTrips.length === 0) {
+            loadDbTrips();
+          }
+        }
+      }
+    }
+    
+    function loadDbStats() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        console.log('WebSocket not connected');
+        return;
+      }
+      
+      pendingStatsCallId = messageId++;
+      
+      const serviceData = {};
+      if (currentVin) {
+        serviceData.vin = currentVin;
+      }
+      
+      const serviceCall = {
+        id: pendingStatsCallId,
+        type: 'call_service',
+        domain: 'zeekr_ev',
+        service: 'get_trip_statistics',
+        service_data: serviceData,
+        return_response: true
+      };
+      
+      console.log('Calling stats service:', serviceCall);
+      ws.send(JSON.stringify(serviceCall));
+    }
+    
+    function loadDbTrips(page = 0) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        console.log('WebSocket not connected');
+        return;
+      }
+      
+      dbCurrentPage = Math.max(0, page);
+      pendingDbCallId = messageId++;
+      
+      const serviceData = {
+        limit: dbPageSize,
+        offset: dbCurrentPage * dbPageSize
+      };
+      
+      // Add filters
+      const categoryFilter = document.getElementById('dbFilterCategory').value;
+      if (categoryFilter) {
+        serviceData.category = categoryFilter;
+      }
+      
+      const fromDate = document.getElementById('dbFilterFrom').value;
+      if (fromDate) {
+        serviceData.start_date = fromDate;
+      }
+      
+      const toDate = document.getElementById('dbFilterTo').value;
+      if (toDate) {
+        serviceData.end_date = toDate;
+      }
+      
+      if (currentVin) {
+        serviceData.vin = currentVin;
+      }
+      
+      const serviceCall = {
+        id: pendingDbCallId,
+        type: 'call_service',
+        domain: 'zeekr_ev',
+        service: 'get_stored_trips',
+        service_data: serviceData,
+        return_response: true
+      };
+      
+      console.log('Calling get_stored_trips service:', serviceCall);
+      ws.send(JSON.stringify(serviceCall));
+      
+      // Also refresh stats
+      loadDbStats();
+    }
+    
+    function handleDbResponse(data) {
+      if (!data) return;
+      
+      dbTrips = data.trips || [];
+      
+      renderDbTable();
+      updateDbPagination(data.count);
+    }
+    
+    function handleStatsResponse(stats) {
+      if (!stats) return;
+      
+      document.getElementById('dbTotalTrips').textContent = stats.total_trips || 0;
+      document.getElementById('dbTotalDistance').textContent = 
+        stats.total_distance_km ? stats.total_distance_km.toFixed(1) : '0';
+      document.getElementById('dbTotalHours').textContent = 
+        stats.total_duration_min ? (stats.total_duration_min / 60).toFixed(1) : '0';
+      
+      // Calculate total kWh: (total_distance / 100) * avg_consumption
+      const totalKwh = (stats.total_distance_km && stats.avg_consumption_kwh) 
+        ? (stats.total_distance_km / 100) * stats.avg_consumption_kwh 
+        : 0;
+      document.getElementById('dbTotalKwh').textContent = totalKwh.toFixed(1);
+      
+      document.getElementById('dbAvgConsumption').textContent = 
+        stats.avg_consumption_kwh ? stats.avg_consumption_kwh.toFixed(2) : '-';
+      document.getElementById('dbUncategorized').textContent = stats.uncategorized_trips || 0;
+    }
+    
+    function renderDbTable() {
+      const tbody = document.getElementById('dbTripsBody');
+      
+      if (dbTrips.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="no-data">No trips found in database</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = dbTrips.map(trip => {
+        const date = trip.start_time ? new Date(trip.start_time).toLocaleString() : '-';
+        const distance = trip.distance_km ? `${trip.distance_km.toFixed(1)} km` : '-';
+        const energy = calcTripEnergy(trip);
+        const energyStr = energy !== null ? `${energy.toFixed(2)} kWh` : '-';
+        const duration = trip.duration_min ? `${trip.duration_min} min` : '-';
+        const category = trip.category || 'uncategorized';
+        const purpose = trip.purpose || '-';
+        
+        return `
+          <tr>
+            <td>${date}</td>
+            <td>${distance}</td>
+            <td>${energyStr}</td>
+            <td>${duration}</td>
+            <td>
+              <select class="category-select" onchange="quickUpdateCategory(${trip.id}, this.value)">
+                <option value="uncategorized" ${category === 'uncategorized' ? 'selected' : ''}>Uncategorized</option>
+                <option value="business" ${category === 'business' ? 'selected' : ''}>Business</option>
+                <option value="private" ${category === 'private' ? 'selected' : ''}>Private</option>
+                <option value="commute" ${category === 'commute' ? 'selected' : ''}>Commute</option>
+              </select>
+            </td>
+            <td>${escapeHtml(purpose)}</td>
+            <td>
+              <button class="edit-btn" onclick="openEditModal(${trip.id})" title="Edit trip">✏️</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+    
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    function updateDbPagination(count) {
+      const totalPages = Math.ceil(count / dbPageSize);
+      const pageInfo = document.getElementById('dbPageInfo');
+      const prevBtn = document.getElementById('dbPrevBtn');
+      const nextBtn = document.getElementById('dbNextBtn');
+      
+      pageInfo.textContent = `Page ${dbCurrentPage + 1} of ${Math.max(1, totalPages)}`;
+      prevBtn.disabled = dbCurrentPage <= 0;
+      nextBtn.disabled = dbCurrentPage >= totalPages - 1;
+    }
+    
+    function clearDbFilters() {
+      document.getElementById('dbFilterCategory').value = '';
+      document.getElementById('dbFilterFrom').value = '';
+      document.getElementById('dbFilterTo').value = '';
+      loadDbTrips(0);
+    }
+    
+    function quickUpdateCategory(dbId, category) {
+      console.log('quickUpdateCategory called with dbId:', dbId, 'category:', category);
+      
+      // Ensure dbId is an integer
+      const parsedDbId = parseInt(dbId);
+      if (isNaN(parsedDbId) || parsedDbId < 1) {
+        console.error('❌ Invalid dbId:', dbId);
+        return;
+      }
+      
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        console.error('WebSocket not connected');
+        return;
+      }
+      
+      pendingUpdateCallId = messageId++;
+      
+      const serviceCall = {
+        id: pendingUpdateCallId,
+        type: 'call_service',
+        domain: 'zeekr_ev',
+        service: 'update_trip',
+        service_data: {
+          db_id: parsedDbId,
+          category: category
+        },
+        return_response: true
+      };
+      
+      console.log('Calling update_trip service:', serviceCall);
+      ws.send(JSON.stringify(serviceCall));
+      
+      // Optimistically update local state (so dropdown shows new value immediately)
+      const trip = dbTrips.find(t => t.id === parsedDbId);
+      if (trip) {
+        trip.category = category;
+        console.log(`Updated trip ${parsedDbId} category to ${category} (local)`);
+      } else {
+        console.warn(`Trip with id ${parsedDbId} not found in local dbTrips`);
+      }
+      
+      // Refresh stats and table after update to confirm change persisted
+      setTimeout(() => {
+        loadDbStats();
+        loadDbTrips(dbCurrentPage);
+      }, 500);
+    }
+    
+    // Currently editing trip (for geocoding)
+    let currentEditTrip = null;
+    
+    function openEditModal(dbId) {
+      const trip = dbTrips.find(t => t.id === dbId);
+      if (!trip) return;
+      
+      currentEditTrip = trip;
+      
+      document.getElementById('editTripId').value = dbId;
+      document.getElementById('editCategory').value = trip.category || 'uncategorized';
+      document.getElementById('editPurpose').value = trip.purpose || '';
+      document.getElementById('editStartAddress').value = trip.start_address || '';
+      document.getElementById('editEndAddress').value = trip.end_address || '';
+      document.getElementById('editNotes').value = trip.notes || '';
+      
+      document.getElementById('editTripModal').classList.add('visible');
+    }
+    
+    function closeEditModal() {
+      document.getElementById('editTripModal').classList.remove('visible');
+      currentEditTrip = null;
+    }
+    
+    // Reverse geocoding using Nominatim (OpenStreetMap)
+    async function reverseGeocode(lat, lon) {
+      if (!lat || !lon) return null;
+      
+      try {
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`,
+          {
+            headers: {
+              'User-Agent': 'ZeekrHomeAssistant/1.0'
+            }
+          }
+        );
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data && data.address) {
+          // Build a readable address
+          const addr = data.address;
+          const parts = [];
+          
+          // Street address
+          if (addr.road) {
+            if (addr.house_number) {
+              parts.push(`${addr.road} ${addr.house_number}`);
+            } else {
+              parts.push(addr.road);
+            }
+          }
+          
+          // City/town
+          const city = addr.city || addr.town || addr.village || addr.municipality;
+          if (city) {
+            parts.push(city);
+          }
+          
+          return parts.join(', ') || data.display_name;
+        }
+        
+        return data.display_name || null;
+      } catch (error) {
+        console.error('Geocoding error:', error);
+        return null;
+      }
+    }
+    
+    async function geocodeStartAddress() {
+      if (!currentEditTrip || !currentEditTrip.start_lat || !currentEditTrip.start_lon) {
+        alert('No GPS coordinates available for start location');
+        return;
+      }
+      
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = '⏳';
+      
+      const address = await reverseGeocode(currentEditTrip.start_lat, currentEditTrip.start_lon);
+      
+      if (address) {
+        document.getElementById('editStartAddress').value = address;
+      } else {
+        alert('Could not determine address from coordinates');
+      }
+      
+      btn.disabled = false;
+      btn.textContent = '📍';
+    }
+    
+    async function geocodeEndAddress() {
+      if (!currentEditTrip || !currentEditTrip.end_lat || !currentEditTrip.end_lon) {
+        alert('No GPS coordinates available for end location');
+        return;
+      }
+      
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = '⏳';
+      
+      const address = await reverseGeocode(currentEditTrip.end_lat, currentEditTrip.end_lon);
+      
+      if (address) {
+        document.getElementById('editEndAddress').value = address;
+      } else {
+        alert('Could not determine address from coordinates');
+      }
+      
+      btn.disabled = false;
+      btn.textContent = '📍';
+    }
+    
+    async function geocodeBothAddresses() {
+      if (!currentEditTrip) {
+        alert('No trip selected');
+        return;
+      }
+      
+      const btn = event.target;
+      btn.disabled = true;
+      btn.textContent = '⏳ Getting addresses...';
+      
+      let startFound = false;
+      let endFound = false;
+      
+      // Get start address
+      if (currentEditTrip.start_lat && currentEditTrip.start_lon) {
+        const startAddress = await reverseGeocode(currentEditTrip.start_lat, currentEditTrip.start_lon);
+        if (startAddress) {
+          document.getElementById('editStartAddress').value = startAddress;
+          startFound = true;
+        }
+      }
+      
+      // Small delay to respect Nominatim rate limit (1 req/sec)
+      await new Promise(resolve => setTimeout(resolve, 1100));
+      
+      // Get end address
+      if (currentEditTrip.end_lat && currentEditTrip.end_lon) {
+        const endAddress = await reverseGeocode(currentEditTrip.end_lat, currentEditTrip.end_lon);
+        if (endAddress) {
+          document.getElementById('editEndAddress').value = endAddress;
+          endFound = true;
+        }
+      }
+      
+      btn.disabled = false;
+      btn.textContent = '📍 Auto-fill Addresses from GPS';
+      
+      if (!startFound && !endFound) {
+        alert('Could not determine addresses. GPS coordinates may be missing.');
+      }
+    }
+    
+    function saveTrip() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      
+      const dbId = parseInt(document.getElementById('editTripId').value);
+      const category = document.getElementById('editCategory').value;
+      const purpose = document.getElementById('editPurpose').value;
+      const startAddress = document.getElementById('editStartAddress').value;
+      const endAddress = document.getElementById('editEndAddress').value;
+      const notes = document.getElementById('editNotes').value;
+      
+      pendingUpdateCallId = messageId++;
+      
+      const serviceCall = {
+        id: pendingUpdateCallId,
+        type: 'call_service',
+        domain: 'zeekr_ev',
+        service: 'update_trip',
+        service_data: {
+          db_id: dbId,
+          category: category,
+          purpose: purpose,
+          start_address: startAddress,
+          end_address: endAddress,
+          notes: notes
+        },
+        return_response: true
+      };
+      
+      console.log('Calling update_trip service:', serviceCall);
+      ws.send(JSON.stringify(serviceCall));
+      
+      closeEditModal();
+      
+      // Refresh after a short delay
+      setTimeout(() => {
+        loadDbTrips(dbCurrentPage);
+      }, 500);
+    }
+    
+    let pendingGeocodeCallId = null;
+    
+    function triggerGeocode() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        alert('Not connected to Home Assistant. Connect first.');
+        return;
+      }
+      
+      const btn = document.getElementById('geocodeBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Starting...';
+      
+      pendingGeocodeCallId = messageId++;
+      
+      const serviceCall = {
+        id: pendingGeocodeCallId,
+        type: 'call_service',
+        domain: 'zeekr_ev',
+        service: 'geocode_trips',
+        service_data: {
+          limit: 50
+        },
+        return_response: true
+      };
+      
+      console.log('Calling geocode_trips service:', serviceCall);
+      ws.send(JSON.stringify(serviceCall));
+      
+      // Reset button after timeout
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = '📍 Geocode Addresses';
+      }, 5000);
+    }
+    
+    function handleGeocodeResponse(data) {
+      const btn = document.getElementById('geocodeBtn');
+      btn.disabled = false;
+      btn.textContent = '📍 Geocode Addresses';
+      
+      if (data && data.success) {
+        if (data.trips_queued > 0) {
+          alert(`Geocoding started for ${data.trips_queued} trip(s).\n\nProgress is logged in Home Assistant log.\nRefresh this page in a few minutes to see addresses.`);
+        } else {
+          alert('All trips already have addresses!');
+        }
+      } else {
+        alert('Failed to start geocoding. Check Home Assistant log.');
+      }
+    }
+    
+    function exportJourneyLog() {
+      if (dbTrips.length === 0) {
+        alert('No trips to export. Load trips first.');
+        return;
+      }
+      
+      // Create CSV mileage log format
+      const headers = [
+        'Date',
+        'Start Time',
+        'End Time',
+        'Start Address',
+        'End Address',
+        'Odometer Start (km)',
+        'Odometer End (km)',
+        'Distance (km)',
+        'Energy (kWh)',
+        'Consumption (kWh/100km)',
+        'Category',
+        'Purpose',
+        'Notes'
+      ];
+      
+      const rows = dbTrips.map(trip => {
+        const startDate = trip.start_time ? new Date(trip.start_time) : null;
+        const endDate = trip.end_time ? new Date(trip.end_time) : null;
+        const energy = calcTripEnergy(trip);
+        
+        const categoryMap = {
+          'business': 'Business',
+          'private': 'Private',
+          'commute': 'Commute',
+          'uncategorized': 'Uncategorized'
+        };
+        
+        return [
+          startDate ? startDate.toLocaleDateString('en-GB') : '',
+          startDate ? startDate.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'}) : '',
+          endDate ? endDate.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'}) : '',
+          trip.start_address || '',
+          trip.end_address || '',
+          trip.start_odometer ? trip.start_odometer.toFixed(1) : '',
+          trip.end_odometer ? trip.end_odometer.toFixed(1) : '',
+          trip.distance_km ? trip.distance_km.toFixed(1) : '',
+          energy !== null ? energy.toFixed(2) : '',
+          trip.consumption_kwh ? trip.consumption_kwh.toFixed(2) : '',
+          categoryMap[trip.category] || trip.category || '',
+          trip.purpose || '',
+          trip.notes || ''
+        ];
+      });
+      
+      const csvContent = [headers, ...rows]
+        .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
+      
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      const now = new Date();
+      a.download = `mileage_log_${now.toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
