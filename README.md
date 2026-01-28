@@ -2,6 +2,9 @@
 
 This is a custom integration for Zeekr Electric Vehicles for Home Assistant. It uses the [zeekr_ev_api](https://github.com/Fryyyyy/zeekr_ev_api) library.
 
+zeekr-journey-log.html goes in /config/wwww folder
+
+
 ## Features
 
 - **Sensors**: Battery Level, Range, Odometer, Interior Temperature, Tire Pressures.
